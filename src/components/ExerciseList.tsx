@@ -2,169 +2,163 @@
 
 import React, { useState } from 'react';
 import { useFitnessStore } from '@/store/useFitnessStore';
+import { MOCK_EXERCISES } from '@/data/mockData';
 import { Exercise } from '@/types/fitness';
-import { Plus, Check, ChevronDown, Info, Play, Dumbbell } from 'lucide-react';
+import { Dumbbell, Plus, Check, Filter } from 'lucide-react';
 
 interface Props {
   isDarkMode?: boolean;
 }
 
-export const ExerciseList: React.FC<Props> = ({ isDarkMode = false }) => {
-  const { getFilteredExercises, routineDays, addExerciseToDay } = useFitnessStore();
-  const exercises = getFilteredExercises();
+export const ExerciseList: React.FC<Props> = ({ isDarkMode = true }) => {
+  const {
+    selectedMuscleId,
+    selectedSubzoneId,
+    selectedEquipment,
+    routineDays = [],
+    addExerciseToDay,
+  } = useFitnessStore();
 
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  const [expandedInfoId, setExpandedInfoId] = useState<string | null>(null);
+  const [selectedDayForExercise, setSelectedDayForExercise] = useState<string>('');
+  const [addedSuccessId, setAddedSuccessId] = useState<string | null>(null);
 
-  const toggleDropdown = (exerciseId: string) => {
-    setOpenDropdownId((prev) => (prev === exerciseId ? null : exerciseId));
-  };
+  const filteredExercises = MOCK_EXERCISES.filter((exercise) => {
+    const exAny = exercise as any;
 
-  const toggleInfo = (exerciseId: string) => {
-    setExpandedInfoId((prev) => (prev === exerciseId ? null : exerciseId));
-  };
+    const matchesMuscle = selectedMuscleId
+      ? exAny.primaryMuscle === selectedMuscleId ||
+        exAny.muscleGroupId === selectedMuscleId ||
+        exAny.muscleId === selectedMuscleId
+      : true;
 
-  const handleSelectDay = (dayId: string, exercise: Exercise) => {
-    addExerciseToDay(dayId, exercise);
-    setOpenDropdownId(null);
+    const matchesSubzone = selectedSubzoneId
+      ? exAny.subzoneId === selectedSubzoneId
+      : true;
+
+    const matchesEquipment =
+      selectedEquipment === 'all' || !selectedEquipment
+        ? true
+        : exAny.equipment?.toLowerCase() === selectedEquipment.toLowerCase();
+
+    return matchesMuscle && matchesSubzone && matchesEquipment;
+  });
+
+  const handleAddExercise = (exercise: Exercise, targetDayId?: string) => {
+    const dayToUse = targetDayId || selectedDayForExercise || routineDays[0]?.dayId;
+    if (!dayToUse) return;
+
+    addExerciseToDay(dayToUse, exercise);
+
+    setAddedSuccessId(exercise.id);
+    setTimeout(() => {
+      setAddedSuccessId(null);
+    }, 1200);
   };
 
   return (
-    <div className={`rounded-2xl p-5 border transition-colors duration-300 shadow-lg ${
-      isDarkMode 
-        ? 'bg-slate-900/90 border-slate-800 text-white' 
-        : 'bg-white/90 border-slate-200 text-slate-900'
-    }`}>
-      <h3 className="text-lg font-bold mb-4">
-        Ejercicios Encontrados ({exercises.length})
-      </h3>
+    <div className="border border-zinc-800/80 rounded-2xl p-4 sm:p-5 shadow-xl bg-zinc-900/90 text-white space-y-4">
+      {/* Encabezado */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800">
+        <div>
+          <div className="flex items-center gap-2">
+            <Dumbbell className="w-5 h-5 text-lime-400" />
+            <h2 className="text-base font-black tracking-tight text-white">
+              Catálogo de Ejercicios
+            </h2>
+          </div>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Filtrados según la zona seleccionada en el cuerpo.
+          </p>
+        </div>
 
-      {exercises.length === 0 ? (
-        <p className={`text-sm py-8 text-center ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-          No hay ejercicios que coincidan con los filtros seleccionados.
-        </p>
+        {routineDays.length > 0 && (
+          <div className="flex items-center gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800">
+            <span className="text-[10px] font-black uppercase text-zinc-400 px-1">
+              Agregar a:
+            </span>
+            <select
+              value={selectedDayForExercise || routineDays[0]?.dayId || ''}
+              onChange={(e) => setSelectedDayForExercise(e.target.value)}
+              className="bg-zinc-900 text-xs font-bold text-lime-400 border border-zinc-700 rounded-lg px-2.5 py-1 outline-none shadow-sm"
+            >
+              {routineDays.map((day, idx) => (
+                <option
+                  key={`${day.dayId}-${idx}`}
+                  value={day.dayId}
+                  className="bg-zinc-900 text-white font-bold"
+                >
+                  {day.dayName || `DÍA ${idx + 1}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Lista de Ejercicios */}
+      {filteredExercises.length === 0 ? (
+        <div className="text-center py-8 border border-dashed border-zinc-800 rounded-2xl space-y-2">
+          <Filter className="w-8 h-8 text-zinc-600 mx-auto" />
+          <p className="text-xs font-semibold text-zinc-400">
+            No hay ejercicios registrados para este filtro o músculo.
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {exercises.map((ex) => {
-            const isDropdownOpen = openDropdownId === ex.id;
-            const isInfoExpanded = expandedInfoId === ex.id;
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[460px] overflow-y-auto pr-1 scrollbar-thin">
+          {filteredExercises.map((exercise) => {
+            const exAny = exercise as any;
+            const isAdded = addedSuccessId === exercise.id;
+            const descriptionText =
+              exAny.description ||
+              (exAny.instructions && exAny.instructions[0]) ||
+              'Ejercicio enfocado para desarrollo muscular.';
 
             return (
               <div
-                key={ex.id}
-                className={`p-4 rounded-xl border flex flex-col justify-between transition-all relative ${
-                  isDarkMode
-                    ? 'bg-slate-800/80 border-slate-700/60 hover:border-sky-500/50'
-                    : 'bg-slate-50/80 border-slate-200 hover:border-sky-500/50'
-                }`}
+                key={exercise.id}
+                className="p-3.5 rounded-xl border border-zinc-800/80 bg-zinc-950/70 hover:border-lime-400/50 transition-all flex flex-col justify-between gap-3 group shadow-sm"
               >
-                <div>
-                  <div className="flex justify-between items-start gap-2">
-                    <h4 className="font-semibold text-sm">{ex.name}</h4>
-                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded shrink-0 ${
-                      isDarkMode ? 'bg-slate-700 text-sky-400' : 'bg-slate-200 text-sky-600'
-                    }`}>
-                      {ex.equipment}
+                <div className="space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-extrabold text-xs text-white leading-snug group-hover:text-lime-400 transition-colors">
+                      {exercise.name}
+                    </h3>
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-lime-500/10 text-lime-400 border border-lime-500/20 shrink-0">
+                      {exercise.equipment}
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => toggleInfo(ex.id)}
-                    className="mt-2.5 text-xs text-sky-500 hover:text-sky-400 font-medium flex items-center gap-1 transition-colors"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                    <span>{isInfoExpanded ? 'Ocultar técnica' : 'Más información'}</span>
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isInfoExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {isInfoExpanded && (
-                    <div className={`mt-3 pt-3 border-t space-y-3 animate-fadeIn ${
-                      isDarkMode ? 'border-slate-700/60' : 'border-slate-200'
-                    }`}>
-                      <div className={`w-full h-36 rounded-xl border overflow-hidden relative flex flex-col items-center justify-center ${
-                        isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-200/60 border-slate-300'
-                      }`}>
-                        {ex.mediaUrl ? (
-                          <img src={ex.mediaUrl} alt={ex.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center p-3 text-center">
-                            <div className="w-10 h-10 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-500 mb-1.5">
-                              <Play className="w-5 h-5 ml-0.5" />
-                            </div>
-                            <span className={`text-[11px] font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                              Demostración visual
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <h5 className="text-[11px] font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1 text-sky-500">
-                          <Dumbbell className="w-3 h-3" /> Cómo ejecutarlo:
-                        </h5>
-                        {ex.instructions && ex.instructions.length > 0 ? (
-                          <ol className={`space-y-1 text-xs list-decimal list-inside pl-1 ${
-                            isDarkMode ? 'text-slate-400' : 'text-slate-600'
-                          }`}>
-                            {ex.instructions.map((ins, i) => (
-                              <li key={i} className="leading-relaxed">{ins}</li>
-                            ))}
-                          </ol>
-                        ) : (
-                          <p className={`text-xs italic ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                            1. Mantén la postura alineada y controla la fase excéntrica.<br />
-                            2. Enfoca la tensión en el grupo muscular durante toda la serie.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <p className="text-[11px] text-zinc-400 line-clamp-2 leading-tight">
+                    {descriptionText}
+                  </p>
                 </div>
 
-                <div className={`mt-4 pt-3 border-t flex items-center justify-between relative ${
-                  isDarkMode ? 'border-slate-700/50' : 'border-slate-200'
-                }`}>
-                  <button
-                    onClick={() => toggleDropdown(ex.id)}
-                    className="w-full bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors shadow-sm"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Plus className="w-4 h-4" /> Agregar a rutina
-                    </span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-800/80">
+                  <span className="text-[10px] font-bold text-zinc-500 capitalize">
+                    {exAny.muscleGroupId || exAny.primaryMuscle || 'Ejercicio'}
+                  </span>
 
-                  {isDropdownOpen && (
-                    <div className={`absolute bottom-full mb-2 left-0 right-0 border rounded-xl shadow-2xl z-20 p-2 space-y-1 max-h-48 overflow-y-auto ${
-                      isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-                    }`}>
-                      <p className={`text-[10px] uppercase font-bold px-2 py-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                        Selecciona el día:
-                      </p>
-                      {routineDays.map((day) => {
-                        const isAdded = day.exercises.some((e) => e.id === ex.id);
-                        return (
-                          <button
-                            key={day.dayId}
-                            onClick={() => handleSelectDay(day.dayId, ex)}
-                            disabled={isAdded}
-                            className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between transition-colors ${
-                              isAdded
-                                ? isDarkMode ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                : isDarkMode ? 'text-slate-200 hover:bg-sky-600 hover:text-white' : 'text-slate-700 hover:bg-sky-500 hover:text-white'
-                            }`}
-                          >
-                            <span>{day.dayName}</span>
-                            {isAdded && (
-                              <span className="text-[10px] text-emerald-500 flex items-center gap-1 font-bold">
-                                <Check className="w-3 h-3" /> Agregado
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <button
+                    onClick={() => handleAddExercise(exercise)}
+                    disabled={isAdded}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all active:scale-95 shadow-sm ${
+                      isAdded
+                        ? 'bg-emerald-500 text-zinc-950'
+                        : 'bg-lime-400 text-zinc-950 hover:bg-lime-300 shadow-lime-500/20'
+                    }`}
+                  >
+                    {isAdded ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>¡Agregado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Agregar</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             );

@@ -2,112 +2,162 @@
 
 import React from 'react';
 import { useFitnessStore } from '@/store/useFitnessStore';
-import { MUSCLE_GROUPS } from '@/data/mockData';
-import { EquipmentType } from '@/types/fitness';
-import { Dumbbell, Activity, Layers, Cpu } from 'lucide-react';
+import { Layers, Filter } from 'lucide-react';
 
 interface Props {
   isDarkMode?: boolean;
 }
 
-const EQUIPMENT_OPTIONS: { id: EquipmentType | 'all'; label: string; icon: React.ReactNode }[] = [
-  { id: 'all', label: 'Todos', icon: <Layers className="w-4 h-4" /> },
-  { id: 'bodyweight', label: 'Sin Equipo', icon: <Activity className="w-4 h-4" /> },
-  { id: 'dumbbells', label: 'Mancuernas', icon: <Dumbbell className="w-4 h-4" /> },
-  { id: 'bands', label: 'Ligas', icon: <Activity className="w-4 h-4" /> },
-  { id: 'machines', label: 'Máquinas', icon: <Cpu className="w-4 h-4" /> },
-];
+// Mapa interno de subzonas por grupo muscular para evitar errores de importación
+const LOCAL_SUBZONES: Record<string, { id: string; name: string }[]> = {
+  chest: [
+    { id: 'chest-upper', name: 'Pectoral Superior (Clavicular)' },
+    { id: 'chest-mid', name: 'Pectoral Medio (Esternal)' },
+    { id: 'chest-lower', name: 'Pectoral Inferior' },
+  ],
+  back: [
+    { id: 'lats', name: 'Dorsal Ancho' },
+    { id: 'rhomboids-traps', name: 'Trapecio y Romboides' },
+    { id: 'lower-back', name: 'Espalda Baja / Lumbar' },
+  ],
+  shoulders: [
+    { id: 'deltoid-anterior', name: 'Deltoides Anterior (Frontal)' },
+    { id: 'deltoid-lateral', name: 'Deltoides Lateral' },
+    { id: 'deltoid-posterior', name: 'Deltoides Posterior (Posterior)' },
+  ],
+  biceps: [
+    { id: 'biceps-long-head', name: 'Cabeza Larga' },
+    { id: 'biceps-short-head', name: 'Cabeza Corta' },
+    { id: 'brachialis', name: 'Braquial' },
+  ],
+  triceps: [
+    { id: 'triceps-long-head', name: 'Cabeza Larga' },
+    { id: 'triceps-lateral-head', name: 'Cabeza Lateral' },
+    { id: 'triceps-medial-head', name: 'Cabeza Medial' },
+  ],
+  abs: [
+    { id: 'abs-upper', name: 'Abdominales Superiores' },
+    { id: 'abs-lower', name: 'Abdominales Inferiores' },
+    { id: 'obliques', name: 'Oblicuos' },
+  ],
+  quadriceps: [
+    { id: 'rectus-femoris', name: 'Recto Femoral' },
+    { id: 'vastus-lateralis', name: 'Vasto Lateral' },
+    { id: 'vastus-medialis', name: 'Vasto Medial' },
+  ],
+  hamstrings: [
+    { id: 'biceps-femoris', name: 'Bíceps Femoral' },
+    { id: 'semitendinosus', name: 'Semitendinoso' },
+  ],
+  glutes: [
+    { id: 'gluteus-maximus', name: 'Glúteo Mayor' },
+    { id: 'gluteus-medius', name: 'Glúteo Medio' },
+  ],
+  calves: [
+    { id: 'gastrocnemius', name: 'Gemelos (Gastrocnemio)' },
+    { id: 'soleus', name: 'Sóleo' },
+  ],
+  forearm: [
+    { id: 'flexors', name: 'Flexores de Muñeca' },
+    { id: 'extensors', name: 'Extensores de Muñeca' },
+  ],
+};
 
-export const SubzoneSelector: React.FC<Props> = ({ isDarkMode = false }) => {
-  const { 
-    selectedMuscleId, 
-    selectedSubzoneId, 
-    selectedEquipment, 
-    setSelectedSubzone, 
-    setSelectedEquipment 
+export const SubzoneSelector: React.FC<Props> = ({ isDarkMode = true }) => {
+  const {
+    selectedMuscleId,
+    selectedSubzoneId,
+    selectedEquipment,
+    setSelectedSubzoneId,
+    setSelectedEquipment,
   } = useFitnessStore();
 
-  const currentMuscleGroup = MUSCLE_GROUPS.find((m) => m.id === selectedMuscleId);
+  const availableSubzones = selectedMuscleId
+    ? LOCAL_SUBZONES[selectedMuscleId] || []
+    : [];
 
-  if (!currentMuscleGroup) return null;
+  const equipmentOptions = [
+    { id: 'all', label: 'Todos' },
+    { id: 'mancuernas', label: 'Mancuernas' },
+    { id: 'ligas', label: 'Ligas / Bandas' },
+    { id: 'corporal', label: 'Peso Corporal' },
+    { id: 'maquina', label: 'Máquinas / Poleas' },
+  ];
 
   return (
-    <div className={`rounded-2xl p-5 border backdrop-blur-md transition-colors duration-300 shadow-lg space-y-6 ${
-      isDarkMode 
-        ? 'bg-slate-900/90 border-slate-800 text-white' 
-        : 'bg-white/90 border-slate-200 text-slate-900'
-    }`}>
-      <div>
-        <span className="text-[10px] uppercase font-extrabold tracking-wider text-sky-500 bg-sky-500/10 px-2.5 py-1 rounded-full border border-sky-500/20">
-          Grupo Muscular
-        </span>
-        <h2 className="text-2xl font-black mt-2">{currentMuscleGroup.name}</h2>
-        <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-          Aísla una cabeza o subzona muscular específica:
-        </p>
-      </div>
+    <div className="border border-zinc-800/80 rounded-2xl p-4 sm:p-5 shadow-xl bg-zinc-900/90 text-white space-y-4">
+      {/* SECCIÓN 1: SUBZONAS MUSCULARES */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 pb-1">
+          <Layers className="w-4 h-4 text-lime-400" />
+          <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">
+            Subzonas Anatómicas
+          </h3>
+        </div>
 
-      {/* Subzonas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        <button
-          onClick={() => setSelectedSubzone(null)}
-          className={`p-3 rounded-xl text-left text-xs font-semibold transition-all ${
-            selectedSubzoneId === null
-              ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-500/20 ring-2 ring-sky-400'
-              : isDarkMode
-              ? 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-          }`}
-        >
-          Todo {currentMuscleGroup.name}
-        </button>
-
-        {currentMuscleGroup.subzones.map((sub) => (
-          <button
-            key={sub.id}
-            onClick={() => setSelectedSubzone(sub.id)}
-            className={`p-3 rounded-xl text-left transition-all ${
-              selectedSubzoneId === sub.id
-                ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-500/20 ring-2 ring-sky-400'
-                : isDarkMode
-                ? 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-            }`}
-          >
-            <div className="text-xs font-semibold">{sub.name}</div>
-            {sub.description && (
-              <div className={`text-[10px] mt-1 line-clamp-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                {sub.description}
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Filtro por Equipamiento */}
-      <div>
-        <h3 className={`text-[11px] font-bold uppercase tracking-wider mb-3 ${
-          isDarkMode ? 'text-slate-400' : 'text-slate-500'
-        }`}>
-          Equipamiento
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {EQUIPMENT_OPTIONS.map((opt) => (
+        {availableSubzones.length === 0 ? (
+          <p className="text-xs text-zinc-500 italic py-1">
+            Selecciona un grupo muscular en el cuerpo para desplegar sus subzonas.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
             <button
-              key={opt.id}
-              onClick={() => setSelectedEquipment(opt.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all ${
-                selectedEquipment === opt.id
-                  ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20 font-bold'
-                  : isDarkMode
-                  ? 'bg-slate-800/80 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-700/50'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
+              onClick={() => setSelectedSubzoneId(null)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                selectedSubzoneId === null
+                  ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-500/20'
+                  : 'bg-zinc-950 text-zinc-400 border border-zinc-800 hover:text-white hover:border-zinc-700'
               }`}
             >
-              {opt.icon}
-              {opt.label}
+              Todas las subzonas
             </button>
-          ))}
+
+            {availableSubzones.map((subzone) => {
+              const isSelected = selectedSubzoneId === subzone.id;
+              return (
+                <button
+                  key={subzone.id}
+                  onClick={() => setSelectedSubzoneId(subzone.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    isSelected
+                      ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-500/20'
+                      : 'bg-zinc-950 text-zinc-300 border border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  {subzone.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* SECCIÓN 2: FILTRO POR EQUIPAMIENTO */}
+      <div className="space-y-2 pt-2 border-t border-zinc-800">
+        <div className="flex items-center gap-2 pb-1">
+          <Filter className="w-4 h-4 text-lime-400" />
+          <h3 className="text-xs font-black uppercase tracking-wider text-zinc-300">
+            Filtrar por Equipamiento
+          </h3>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {equipmentOptions.map((item) => {
+            const isSelected = selectedEquipment === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelectedEquipment(item.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  isSelected
+                    ? 'bg-lime-500/20 text-lime-400 border border-lime-500/40 shadow-sm'
+                    : 'bg-zinc-950 text-zinc-400 border border-zinc-800 hover:text-white hover:border-zinc-700'
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

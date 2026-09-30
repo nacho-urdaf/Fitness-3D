@@ -1,9 +1,9 @@
-export type EquipmentType = 'dumbbells' | 'bands' | 'machines' | 'bodyweight';
+export type EquipmentType = 'all' | 'dumbbells' | 'bands' | 'bodyweight' | 'machines';
 
 export interface MuscleSubzone {
   id: string;
   name: string;
-  description?: string;
+  description: string;
 }
 
 export interface MuscleGroup {
@@ -17,13 +17,18 @@ export interface Exercise {
   name: string;
   muscleGroupId: string;
   subzoneId: string;
-  equipment: EquipmentType;
+  equipment: 'dumbbells' | 'bands' | 'bodyweight' | 'machines';
   instructions?: string[];
-  mediaUrl?: string; // URL de GIF o video demostrativo
 }
 
 export interface RoutineDay {
   dayId: string;
   dayName: string;
   exercises: Exercise[];
+}
+
+export interface UserSubscription {
+  isPro: boolean;
+  tier: 'free' | 'monthly' | 'annual';
+  expiresAt?: string;
 }
